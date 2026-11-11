@@ -1,0 +1,63 @@
+# Builds the app with Trunk and publishes dist/ to GitHub Pages on every push to main.
+# One-time setup: repo Settings -> Pages -> Build and deployment -> Source: "GitHub Actions".
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+env:
+  TRUNK_VERSION: v0.22.1
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Install Trunk
+        run: |
+          base="https://github.com/trunk-rs/trunk/releases/download/${TRUNK_VERSION}"
+          file="trunk-x86_64-unknown-linux-gnu.tar.gz"
+          curl -sSfLO "$base/$file"
+          curl -sSfL "$base/$file.sha256" | awk '{print $1"  '"$file"'"}' | sha256sum -c -
+          tar -xzf "$file" -C /usr/local/bin trunk
+          trunk --version
+
+      - name: Test core logic
+        run: cargo test -p expenses-core
+
+      - name: Build
+        run: trunk build --release
+
+      - uses: actions/configure-pages@v6
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5

@@ -27,6 +27,7 @@ src/             หน้าจอ Leptos
   views/           home, list, report, settings, categories, editor
 index.html       หน้าหลักของ Trunk และฟังก์ชัน JS สำหรับบันทึกไฟล์ (share sheet บน iPhone)
 style.css        ธีมสว่าง/มืด ออกแบบสำหรับมือถือ
+icons/           ไอคอนแอป: icon.svg คือต้นฉบับ ส่วน .png เรนเดอร์จากไฟล์นี้ (แท็บเบราว์เซอร์, หน้าจอโฮม iPhone, manifest)
 ```
 
 ## เครื่องมือที่ต้องมี (Windows)
@@ -63,7 +64,9 @@ trunk build --release --offline    # build สำหรับใช้งาน�
 
 ## ทำเป็น PWA
 
-ใน `index.html` มีคอมเมนต์บอกตำแหน่งที่ต้องใส่ manifest, apple-touch-icon และโค้ดลงทะเบียน service worker
+ไอคอนใส่ไว้แล้ว (favicon และ apple-touch-icon สำหรับหน้าจอโฮม iPhone) ใน `index.html` มีคอมเมนต์บอกตำแหน่งที่ต้องใส่ manifest และโค้ดลงทะเบียน service worker
+
+- ไอคอนสำหรับ manifest มีให้แล้วที่ `icons/icon-192.png` และ `icons/icon-512.png` (โฟลเดอร์ `icons/` ถูกคัดลอกไป `dist/icons/` ด้วย `rel="copy-dir"`)
 
 - ใช้ `<link data-trunk rel="copy-file" href="...">` เพื่อให้ Trunk คัดลอกไฟล์ เช่น manifest, ไอคอน และ `sw.js` ไปไว้ใน `dist/`
 - ชื่อไฟล์ .js/.wasm/.css ที่ Trunk สร้างจะมี hash ต่อท้าย ถ้าอยากให้ service worker แคชได้ง่าย ให้ตั้ง `filehash = false` ใน `[build]` ของ `Trunk.toml`

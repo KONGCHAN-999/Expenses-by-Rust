@@ -50,6 +50,12 @@ pub enum CategoryError {
 
 pub const OTHER_EXPENSE_ID: &str = "exp-other";
 pub const OTHER_INCOME_ID: &str = "inc-other";
+pub const SNACK_ID: &str = "exp-snack";
+
+/// Bumped whenever a default category is added, so data saved by an older
+/// version can receive it once (see [`Data::add_new_defaults`]).
+/// 1: first release. 2: snack (ຂະໜົມ).
+pub const DEFAULTS_VERSION: u32 = 2;
 
 pub fn other_category_id(kind: Kind) -> &'static str {
     match kind {
@@ -66,10 +72,15 @@ fn other_category(kind: Kind) -> Category {
     cat(other_category_id(kind), kind, "ອື່ນໆ", "📦", "#94a3b8")
 }
 
+fn snack_category() -> Category {
+    cat(SNACK_ID, Kind::Expense, "ຂະໜົມ", "🍩", "#d946ef")
+}
+
 pub fn default_categories() -> Vec<Category> {
     use Kind::*;
     vec![
         cat("exp-food", Expense, "ອາຫານ", "🍜", "#f59e0b"),
+        snack_category(),
         cat("exp-transport", Expense, "ເດີນທາງ", "🚗", "#0ea5e9"),
         cat("exp-household", Expense, "ເຄື່ອງໃຊ້", "🛒", "#84cc16"),
         cat("exp-housing", Expense, "ທີ່ພັກ", "🏠", "#6366f1"),
@@ -150,6 +161,28 @@ impl Data {
         self.transactions.iter().filter(|t| t.category_id == category_id).count()
     }
 
+    /// Adds the default categories introduced after defaults version `seen`
+    /// (see [`DEFAULTS_VERSION`]), unless one with the same id or name exists.
+    pub fn add_new_defaults(&mut self, seen: u32) {
+        if seen < 2 {
+            self.insert_default(snack_category(), "exp-food");
+        }
+    }
+
+    fn insert_default(&mut self, cat: Category, after_id: &str) {
+        let taken = self
+            .categories
+            .iter()
+            .any(|c| c.id == cat.id || (c.kind == cat.kind && c.name.trim() == cat.name));
+        if taken {
+            return;
+        }
+        match self.categories.iter().position(|c| c.id == after_id) {
+            Some(pos) => self.categories.insert(pos + 1, cat),
+            None => self.upsert_category(cat),
+        }
+    }
+
     /// Re-adds the "other" categories if they are missing (e.g. after an import).
     pub fn ensure_other_categories(&mut self) {
         for kind in [Kind::Expense, Kind::Income] {
@@ -214,14 +247,14 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn default_categories_have_12_expense_and_5_income_with_unique_ids() {
+    fn default_categories_have_13_expense_and_5_income_with_unique_ids() {
         let cats = default_categories();
-        assert_eq!(cats.iter().filter(|c| c.kind == Kind::Expense).count(), 12);
+        assert_eq!(cats.iter().filter(|c| c.kind == Kind::Expense).count(), 13);
         assert_eq!(cats.iter().filter(|c| c.kind == Kind::Income).count(), 5);
         let mut ids: Vec<_> = cats.iter().map(|c| c.id.as_str()).collect();
         ids.sort();
         ids.dedup();
-        assert_eq!(ids.len(), 17);
+        assert_eq!(ids.len(), 18);
         assert!(ids.contains(&OTHER_EXPENSE_ID));
         assert!(ids.contains(&OTHER_INCOME_ID));
     }
@@ -318,5 +351,58 @@ pub(crate) mod tests {
         assert!(data.category(OTHER_INCOME_ID).is_some());
         data.ensure_other_categories();
         assert_eq!(data.categories.len(), 2);
+    }
+
+    /// Data saved before the snack category existed (defaults version 1).
+    fn data_from_version_1() -> Data {
+        let mut data = Data::new_default();
+        data.categories.retain(|c| c.id != SNACK_ID);
+        data
+    }
+
+    #[test]
+    fn snack_is_a_default_expense_category_right_after_food() {
+        let data = Data::new_default();
+        let ids: Vec<_> = data.categories_of(Kind::Expense).iter().map(|c| c.id.as_str()).collect();
+        assert_eq!(&ids[..2], &["exp-food", SNACK_ID]);
+        assert_eq!(data.category(SNACK_ID).unwrap().name, "ຂະໜົມ");
+    }
+
+    #[test]
+    fn add_new_defaults_brings_snack_to_old_data() {
+        let mut data = data_from_version_1();
+        data.add_new_defaults(1);
+        let ids: Vec<_> = data.categories_of(Kind::Expense).iter().map(|c| c.id.as_str()).collect();
+        assert_eq!(&ids[..2], &["exp-food", SNACK_ID]);
+    }
+
+    #[test]
+    fn add_new_defaults_puts_snack_before_other_when_food_is_gone() {
+        let mut data = data_from_version_1();
+        data.delete_category("exp-food").unwrap();
+        data.add_new_defaults(1);
+        let ids: Vec<_> = data.categories_of(Kind::Expense).iter().map(|c| c.id.as_str()).collect();
+        assert_eq!(&ids[ids.len() - 2..], &[SNACK_ID, OTHER_EXPENSE_ID]);
+    }
+
+    #[test]
+    fn add_new_defaults_skips_what_the_user_already_has_or_removed() {
+        // Same name made by hand: no duplicate.
+        let mut data = data_from_version_1();
+        data.upsert_category(cat("mine", Kind::Expense, " ຂະໜົມ ", "🍰", "#ec4899"));
+        data.add_new_defaults(1);
+        assert!(data.category(SNACK_ID).is_none());
+
+        // Deleted after it was added: stays deleted.
+        let mut data = Data::new_default();
+        data.delete_category(SNACK_ID).unwrap();
+        data.add_new_defaults(DEFAULTS_VERSION);
+        assert!(data.category(SNACK_ID).is_none());
+
+        // Running twice adds it once.
+        let mut data = data_from_version_1();
+        data.add_new_defaults(1);
+        data.add_new_defaults(1);
+        assert_eq!(data.categories.iter().filter(|c| c.id == SNACK_ID).count(), 1);
     }
 }

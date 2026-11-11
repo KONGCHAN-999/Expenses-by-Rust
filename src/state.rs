@@ -4,7 +4,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 
 use expenses_core::date::{Date, YearMonth};
-use expenses_core::model::{Data, Transaction};
+use expenses_core::model::{DEFAULTS_VERSION, Data, Transaction};
 use leptos::prelude::*;
 use serde::{Deserialize, Serialize};
 
@@ -42,6 +42,10 @@ pub struct Settings {
     pub theme: Theme,
     #[serde(default)]
     pub last_backup_ms: Option<i64>,
+    /// Which default categories this device's data has already been given
+    /// (see `expenses_core::model::DEFAULTS_VERSION`).
+    #[serde(default)]
+    pub defaults_version: u32,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -69,11 +73,17 @@ static TOAST_IDS: AtomicU64 = AtomicU64::new(1);
 impl AppState {
     pub fn load() -> AppState {
         let today = platform::today();
-        let settings = platform::load(SETTINGS_KEY)
+        let mut settings: Settings = platform::load(SETTINGS_KEY)
             .and_then(|s| serde_json::from_str(&s).ok())
             .unwrap_or_default();
+        let mut data = load_data();
+        if settings.defaults_version < DEFAULTS_VERSION {
+            // Give older data the categories added since (once; deleting them later sticks).
+            data.add_new_defaults(settings.defaults_version);
+            settings.defaults_version = DEFAULTS_VERSION;
+        }
         AppState {
-            data: RwSignal::new(load_data()),
+            data: RwSignal::new(data),
             settings: RwSignal::new(settings),
             tab: RwSignal::new(Tab::Home),
             month: RwSignal::new(today.year_month()),

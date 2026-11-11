@@ -584,7 +584,7 @@ mod tests {
     fn summarize_counts_and_finds_date_range() {
         let s = summarize(&sample());
         assert_eq!(s.transactions, 2);
-        assert_eq!(s.categories, 17);
+        assert_eq!(s.categories, 18);
         assert_eq!(s.first.unwrap().to_string(), "2026-11-01");
         assert_eq!(s.last.unwrap().to_string(), "2026-11-11");
         assert_eq!(summarize(&Data::default()).first, None);

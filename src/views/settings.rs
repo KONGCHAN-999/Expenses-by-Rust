@@ -131,7 +131,7 @@ fn SettingsMain(page: RwSignal<Page>) -> impl IntoView {
             <div class="group-label">"ຂໍ້ມູນ"</div>
             <div class="group">
                 <button class="row" on:click=export_json>
-                    <span class="row-icon" style="background:#5b5bd6">"⬆"</span>
+                    <span class="row-icon" style="background:var(--accent)">"⬆"</span>
                     <span class="row-text">"ສົ່ງອອກໄຟລ໌ສຳຮອງ"<small>".json · ນຳເຂົ້າຄືນໄດ້ຄົບທຸກຢ່າງ"</small></span>
                     <span class="chev">"›"</span>
                 </button>

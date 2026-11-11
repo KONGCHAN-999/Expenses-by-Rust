@@ -5,5 +5,6 @@
 pub mod date;
 pub mod format;
 pub mod io;
+pub mod keypad;
 pub mod model;
 pub mod summary;

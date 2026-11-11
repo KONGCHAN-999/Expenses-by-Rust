@@ -1,0 +1,9 @@
+[package]
+name = "expenses-core"
+version = "0.1.0"
+edition = "2024"
+description = "Pure logic for the Lao income/expense tracker: dates, formatting, summaries, import/export."
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

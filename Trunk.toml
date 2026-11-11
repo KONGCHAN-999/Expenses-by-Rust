@@ -1,0 +1,11 @@
+[build]
+target = "index.html"
+dist = "dist"
+# Relative asset URLs so the built app works from any folder,
+# including a GitHub Pages project site (https://<user>.github.io/<repo>/).
+public_url = "./"
+
+[serve]
+addresses = ["127.0.0.1"]
+port = 8080
+open = false
